@@ -1,6 +1,6 @@
 const StaffMember = require('../models/StaffMember');
 
-// Helper to normalize array fields
+// Helper: normalize array fields
 const toArray = val =>
   Array.isArray(val)
     ? val
@@ -39,7 +39,7 @@ exports.getStaff = async (req, res) => {
   }
 };
 
-// Get staff by ID
+// Get by ID
 exports.getStaffById = async (req, res) => {
   try {
     const staff = await StaffMember.findById(req.params.id);
@@ -57,7 +57,7 @@ exports.updateStaff = async (req, res) => {
     const staff = await StaffMember.findById(req.params.id);
     if (!staff) return res.status(404).json({ message: 'Staff not found' });
 
-    // Update text fields
+    // Text fields
     staff.email = req.body.email || staff.email;
     staff.fullName = req.body.fullName || staff.fullName;
     staff.role = req.body.role || staff.role;
@@ -68,7 +68,7 @@ exports.updateStaff = async (req, res) => {
     staff.hpcsa = req.body.hpcsa || staff.hpcsa;
     staff.location = req.body.location || staff.location;
 
-    // Update files if new ones uploaded
+    // Files
     if (req.files?.profilePic?.[0]) staff.profilePic = req.files.profilePic[0].path;
     if (req.files?.certificates?.length) staff.certificates = req.files.certificates.map(f => f.path);
 

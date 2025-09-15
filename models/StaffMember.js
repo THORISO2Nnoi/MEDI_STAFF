@@ -11,8 +11,8 @@ const staffSchema = new mongoose.Schema({
   hpcsa: String,
   location: String,
   languages: [String],
-  profilePic: String,
-  certificates: [String]
+  profilePic: String,      // store path as string
+  certificates: [String]   // store array of strings
 }, { timestamps: true, collection: 'StaffMembers' });
 
 module.exports = mongoose.model('StaffMember', staffSchema);
