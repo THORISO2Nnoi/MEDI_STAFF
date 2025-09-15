@@ -5,46 +5,34 @@ const staffController = require('../controllers/staffController');
 
 const router = express.Router();
 
-// Multer storage
+// Multer setup
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
+  destination: (req, file, cb) => {
     if (file.fieldname === 'profilePic') {
       cb(null, path.join(__dirname, '../uploads/profile_pics'));
     } else {
       cb(null, path.join(__dirname, '../uploads/certificates'));
     }
   },
-  filename: function (req, file, cb) {
+  filename: (req, file, cb) => {
     cb(null, Date.now() + '-' + file.originalname);
   }
 });
-
 const upload = multer({ storage });
 
-// Add new staff
-router.post(
-  '/',
-  upload.fields([
-    { name: 'profilePic', maxCount: 1 },
-    { name: 'certificates' }
-  ]),
-  staffController.addStaff
-);
+// Routes
+router.post('/', upload.fields([
+  { name: 'profilePic', maxCount: 1 },
+  { name: 'certificates' }
+]), staffController.addStaff);
 
-// Get all staff
 router.get('/', staffController.getStaff);
 
-// Get single staff by ID
 router.get('/:id', staffController.getStaffById);
 
-// Update staff
-router.put(
-  '/:id',
-  upload.fields([
-    { name: 'profilePic', maxCount: 1 },
-    { name: 'certificates' }
-  ]),
-  staffController.updateStaff
-);
+router.put('/:id', upload.fields([
+  { name: 'profilePic', maxCount: 1 },
+  { name: 'certificates' }
+]), staffController.updateStaff);
 
 module.exports = router;
