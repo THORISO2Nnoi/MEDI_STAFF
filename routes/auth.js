@@ -1,3 +1,4 @@
+// routes/auth.js
 const express = require('express');
 const router = express.Router();
 const StaffMember = require('../models/Staff');
@@ -7,14 +8,14 @@ const jwt = require('jsonwebtoken');
 // Login route
 router.post('/login', async (req, res) => {
   try {
-    const { workEmail, password } = req.body;  // use email instead of staffId
-    if (!workEmail || !password) 
+    const { workEmail, password } = req.body;
+    if (!workEmail || !password)
       return res.status(400).json({ message: 'Email and password required' });
 
     const staff = await StaffMember.findOne({ workEmail });
     if (!staff) return res.status(401).json({ message: 'Invalid email or password' });
 
-    const isMatch = await bcrypt.compare(password, staff.password);
+    const isMatch = await staff.comparePassword(password);
     if (!isMatch) return res.status(401).json({ message: 'Invalid email or password' });
 
     const token = jwt.sign(
