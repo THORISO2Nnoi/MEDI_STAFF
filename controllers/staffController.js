@@ -1,112 +1,122 @@
-const StaffMember = require('../models/Staff');
-const nodemailer = require('nodemailer');
+const Staff = require('../models/Staff');
 const bcrypt = require('bcrypt');
+const fs = require('fs');
+const path = require('path');
 
-// Normalize array fields
-const toArray = val =>
-  Array.isArray(val)
-    ? val
-    : (val || '').split(',').map(s => s.trim()).filter(Boolean);
-
-// Nodemailer setup (use env vars)
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
-
-// Random password generator
-const generateRandomPassword = (length = 10) => {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let pwd = '';
-  for (let i = 0; i < length; i++) {
-    pwd += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return pwd;
-};
-
-// Add staff
-exports.addStaff = async (req, res) => {
+// --- Add new staff ---
+const addStaff = async (req, res) => {
   try {
-    const data = { ...req.body };
+    const {
+      email,
+      password,
+      fullName,
+      role,
+      specialization = [],
+      qualifications = [],
+      languages = [],
+      experience = '',
+      hpcsa = '',
+      location = ''
+    } = req.body;
 
-    // Ensure unique work email
-    if (await StaffMember.findOne({ workEmail: data.workEmail })) {
-      return res.status(400).json({ message: 'Work email exists' });
-    }
+    const hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
 
-    data.specialization = toArray(data.specialization);
-    data.qualifications = toArray(data.qualifications);
-    data.languages = toArray(data.languages);
+    const profilePic = req.files?.['profilePic'] ? req.files['profilePic'][0].filename : '';
+    const certificates = req.files?.['certificates']
+      ? req.files['certificates'].map(file => file.filename)
+      : [];
 
-    // Files
-    data.profilePic = req.files?.profilePic?.[0]?.path || '';
-    data.certificates = (req.files?.certificates || []).map(f => f.path);
-
-    // Generate hashed password
-    const plainPassword = generateRandomPassword();
-    data.password = await bcrypt.hash(plainPassword, 10);
-
-    const staff = new StaffMember(data);
-    await staff.save();
-
-    // Send credentials to personal email
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: data.personalEmail,
-      subject: 'MediStaff Login Credentials',
-      text: `Hello ${data.fullName},\n\nYour MediStaff account is ready.\nStaff ID: ${data.staffId}\nPassword: ${plainPassword}\nUse your staff ID to login.`
+    const newStaff = new Staff({
+      email,
+      password: hashedPassword,
+      fullName,
+      role,
+      specialization,
+      qualifications,
+      languages,
+      experience,
+      hpcsa,
+      location,
+      profilePic,
+      certificates
     });
 
-    res.status(201).json({ message: 'Staff added and credentials sent', staff });
-
-  } catch (error) {
-    console.error('Add staff error:', error);
-    res.status(500).json({ message: error.message });
+    await newStaff.save();
+    res.status(201).json({ message: 'Staff added successfully', staff: newStaff });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error adding staff', error: err.message });
   }
 };
 
+// --- Get all staff ---
+const getStaff = async (req, res) => {
+  try {
+    const staff = await Staff.find();
+    res.json(staff);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching staff', error: err.message });
+  }
+};
 
 // --- Get staff by ID ---
-exports.getStaffById = async (req, res) => {
+const getStaffById = async (req, res) => {
   try {
-    const staff = await StaffMember.findById(req.params.id);
+    const staff = await Staff.findById(req.params.id);
     if (!staff) return res.status(404).json({ message: 'Staff not found' });
     res.json(staff);
-  } catch (error) {
-    console.error('Get staff by ID error:', error);
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching staff', error: err.message });
   }
 };
 
 // --- Update staff ---
-exports.updateStaff = async (req, res) => {
+const updateStaff = async (req, res) => {
   try {
-    const staff = await StaffMember.findById(req.params.id);
-    if (!staff) return res.status(404).json({ message: 'Staff not found' });
+    const updates = { ...req.body };
 
-    // Text fields
-    staff.workEmail = req.body.workEmail || staff.workEmail;
-    staff.personalEmail = req.body.personalEmail || staff.personalEmail;
-    staff.fullName = req.body.fullName || staff.fullName;
-    staff.role = req.body.role || staff.role;
-    staff.specialization = toArray(req.body.specialization) || staff.specialization;
-    staff.qualifications = toArray(req.body.qualifications) || staff.qualifications;
-    staff.languages = toArray(req.body.languages) || staff.languages;
-    staff.experience = req.body.experience || staff.experience;
-    staff.hpcsa = req.body.hpcsa || staff.hpcsa;
-    staff.location = req.body.location || staff.location;
+    if (req.files?.['profilePic']) updates.profilePic = req.files['profilePic'][0].filename;
+    if (req.files?.['certificates']) {
+      updates.certificates = req.files['certificates'].map(file => file.filename);
+    }
 
-    // Files
-    if (req.files?.profilePic?.[0]) staff.profilePic = req.files.profilePic[0].path;
-    if (req.files?.certificates?.length) staff.certificates = req.files.certificates.map(f => f.path);
+    const updatedStaff = await Staff.findByIdAndUpdate(req.params.id, updates, { new: true });
+    if (!updatedStaff) return res.status(404).json({ message: 'Staff not found' });
 
-    await staff.save();
-    res.json({ message: 'Staff updated', staff });
-  } catch (error) {
-    console.error('Update staff error:', error);
-    res.status(500).json({ message: error.message });
+    res.json({ message: 'Staff updated successfully', staff: updatedStaff });
+  } catch (err) {
+    res.status(500).json({ message: 'Error updating staff', error: err.message });
   }
+};
+
+// --- Delete staff ---
+const deleteStaff = async (req, res) => {
+  try {
+    const deletedStaff = await Staff.findByIdAndDelete(req.params.id);
+    if (!deletedStaff) return res.status(404).json({ message: 'Staff not found' });
+
+    // Delete uploaded files
+    if (deletedStaff.profilePic) {
+      const profilePath = path.join(__dirname, '../uploads/profile_pics', deletedStaff.profilePic);
+      if (fs.existsSync(profilePath)) fs.unlinkSync(profilePath);
+    }
+    if (deletedStaff.certificates?.length > 0) {
+      deletedStaff.certificates.forEach(cert => {
+        const certPath = path.join(__dirname, '../uploads/certificates', cert);
+        if (fs.existsSync(certPath)) fs.unlinkSync(certPath);
+      });
+    }
+
+    res.json({ message: 'Staff deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error deleting staff', error: err.message });
+  }
+};
+
+module.exports = {
+  addStaff,
+  getStaff,
+  getStaffById,
+  updateStaff,
+  deleteStaff
 };
