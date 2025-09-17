@@ -3,8 +3,8 @@ const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-const bcrypt = require('bcrypt');
-const User = require('./models/User'); // <-- make sure this path is correct
+// const bcrypt = require('bcrypt');  <-- removed
+const User = require('./models/User'); // make sure path is correct
 
 // Routes
 const staffRoutes = require('./routes/staffRoutes');
@@ -22,20 +22,19 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // --- Routes ---
 app.use('/api/staff', staffRoutes);
-app.use('/api/auth', authRoutes); // login available at /api/auth/login
+app.use('/api/auth', authRoutes);
 
 // --- Default route ---
 app.get('/', (req, res) => res.send('API is running'));
 
-// --- Function to create default admin ---
+// --- Function to create default admin (plain-text password) ---
 async function createDefaultAdmin() {
   try {
     const existingAdmin = await User.findOne({ email: 'admin@medi.com' });
     if (!existingAdmin) {
-      const hashedPassword = await bcrypt.hash('admin123', 10);
       await User.create({
         email: 'admin@medi.com',
-        password: hashedPassword,
+        password: 'admin123',  // plain-text password
         role: 'admin'
       });
       console.log('✅ Default admin created: admin@medi.com / admin123');
@@ -54,7 +53,7 @@ mongoose.connect(process.env.MONGO_URI, {
 })
 .then(() => {
   console.log('✅ MongoDB connected');
-  createDefaultAdmin();  // <--- runs once after DB connection
+  createDefaultAdmin();  // runs once after DB connection
 
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
