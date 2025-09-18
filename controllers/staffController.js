@@ -5,6 +5,9 @@ const path = require('path');
 // --- Add new staff ---
 const addStaff = async (req, res) => {
   try {
+    console.log('📩 Add staff request body:', req.body);
+    console.log('📁 Add staff files:', req.files);
+
     const {
       staffId,
       fullName,
