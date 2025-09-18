@@ -1,5 +1,4 @@
-const Staff = require('../models/Staff');
-const bcrypt = require('bcrypt');
+const Staff = require('../models/StaffMember');
 const fs = require('fs');
 const path = require('path');
 
@@ -7,10 +6,12 @@ const path = require('path');
 const addStaff = async (req, res) => {
   try {
     const {
-      email,
-      password,
+      staffId,
       fullName,
       role,
+      workEmail,
+      personalEmail,
+      password,
       specialization = [],
       qualifications = [],
       languages = [],
@@ -19,18 +20,28 @@ const addStaff = async (req, res) => {
       location = ''
     } = req.body;
 
-    const hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
+    // Ensure required fields are present
+    if (!staffId || !fullName || !role || !workEmail || !personalEmail || !password) {
+      return res.status(400).json({ message: 'Please fill in all required fields.' });
+    }
 
-    const profilePic = req.files?.['profilePic'] ? req.files['profilePic'][0].filename : '';
+    // Handle file uploads
+    const profilePic = req.files?.['profilePic']
+      ? req.files['profilePic'][0].filename
+      : '';
+
     const certificates = req.files?.['certificates']
       ? req.files['certificates'].map(file => file.filename)
       : [];
 
+    // Create staff
     const newStaff = new Staff({
-      email,
-      password: hashedPassword,
+      staffId,
       fullName,
       role,
+      workEmail,
+      personalEmail,
+      password, // will be hashed by pre-save hook
       specialization,
       qualifications,
       languages,
@@ -44,7 +55,7 @@ const addStaff = async (req, res) => {
     await newStaff.save();
     res.status(201).json({ message: 'Staff added successfully', staff: newStaff });
   } catch (err) {
-    console.error(err);
+    console.error('Error adding staff:', err);
     res.status(500).json({ message: 'Error adding staff', error: err.message });
   }
 };
@@ -75,7 +86,9 @@ const updateStaff = async (req, res) => {
   try {
     const updates = { ...req.body };
 
-    if (req.files?.['profilePic']) updates.profilePic = req.files['profilePic'][0].filename;
+    if (req.files?.['profilePic']) {
+      updates.profilePic = req.files['profilePic'][0].filename;
+    }
     if (req.files?.['certificates']) {
       updates.certificates = req.files['certificates'].map(file => file.filename);
     }
@@ -95,7 +108,7 @@ const deleteStaff = async (req, res) => {
     const deletedStaff = await Staff.findByIdAndDelete(req.params.id);
     if (!deletedStaff) return res.status(404).json({ message: 'Staff not found' });
 
-    // Delete uploaded files
+    // Delete uploaded files from storage
     if (deletedStaff.profilePic) {
       const profilePath = path.join(__dirname, '../uploads/profile_pics', deletedStaff.profilePic);
       if (fs.existsSync(profilePath)) fs.unlinkSync(profilePath);
