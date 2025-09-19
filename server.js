@@ -9,6 +9,7 @@ const User = require('./models/User'); // make sure path is correct
 // Routes
 const staffRoutes = require('./routes/staffRoutes');
 const authRoutes = require('./routes/auth');
+const nurseRequestsRouter = require('./routes/nurseRequests'); // ← new route
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // --- Routes ---
 app.use('/api/staff', staffRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/nurse-requests', nurseRequestsRouter); // ← new endpoint
 
 // --- Default route ---
 app.get('/', (req, res) => res.send('API is running'));
