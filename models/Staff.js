@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
 
 const staffSchema = new mongoose.Schema({
   staffId: {
@@ -12,7 +11,7 @@ const staffSchema = new mongoose.Schema({
   role: { type: String, enum: ['Admin', 'Doctor', 'Nurse'], required: true },
   workEmail: { type: String, required: true, unique: true },
   personalEmail: { type: String, required: true },
-  password: { type: String, required: true },
+  password: { type: String, required: true }, // plain-text password
   specialization: { type: [String], default: [] },
   qualifications: { type: [String], default: [] },
   languages: { type: [String], default: [] },
@@ -23,15 +22,9 @@ const staffSchema = new mongoose.Schema({
   certificates: { type: [String], default: [] },
 }, { timestamps: true });
 
-staffSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
-
+// Remove hashing — compare password in plain-text
 staffSchema.methods.comparePassword = async function(candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
+  return candidatePassword === this.password;
 };
 
 module.exports = mongoose.model('Staff', staffSchema);
