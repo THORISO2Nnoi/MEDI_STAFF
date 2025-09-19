@@ -3,11 +3,8 @@ const fs = require('fs');
 const path = require('path');
 
 // --- Add new staff ---
-const addStaff = async (req, res) => {
+exports.addStaff = async (req, res) => {
   try {
-    console.log('📩 Add staff request body:', req.body);
-    console.log('📁 Add staff files:', req.files);
-
     const {
       staffId,
       fullName,
@@ -23,12 +20,10 @@ const addStaff = async (req, res) => {
       location = ''
     } = req.body;
 
-    // Ensure required fields are present
     if (!staffId || !fullName || !role || !workEmail || !personalEmail || !password) {
       return res.status(400).json({ message: 'Please fill in all required fields.' });
     }
 
-    // Handle file uploads
     const profilePic = req.files?.['profilePic']
       ? req.files['profilePic'][0].filename
       : '';
@@ -37,14 +32,13 @@ const addStaff = async (req, res) => {
       ? req.files['certificates'].map(file => file.filename)
       : [];
 
-    // Create staff
     const newStaff = new Staff({
       staffId,
       fullName,
       role,
       workEmail,
       personalEmail,
-      password, // will be hashed by pre-save hook
+      password,
       specialization,
       qualifications,
       languages,
@@ -64,7 +58,7 @@ const addStaff = async (req, res) => {
 };
 
 // --- Get all staff ---
-const getStaff = async (req, res) => {
+exports.getStaff = async (req, res) => {
   try {
     const staff = await Staff.find();
     res.json(staff);
@@ -74,7 +68,7 @@ const getStaff = async (req, res) => {
 };
 
 // --- Get staff by ID ---
-const getStaffById = async (req, res) => {
+exports.getStaffById = async (req, res) => {
   try {
     const staff = await Staff.findById(req.params.id);
     if (!staff) return res.status(404).json({ message: 'Staff not found' });
@@ -85,7 +79,7 @@ const getStaffById = async (req, res) => {
 };
 
 // --- Update staff ---
-const updateStaff = async (req, res) => {
+exports.updateStaff = async (req, res) => {
   try {
     const updates = { ...req.body };
 
@@ -106,12 +100,11 @@ const updateStaff = async (req, res) => {
 };
 
 // --- Delete staff ---
-const deleteStaff = async (req, res) => {
+exports.deleteStaff = async (req, res) => {
   try {
     const deletedStaff = await Staff.findByIdAndDelete(req.params.id);
     if (!deletedStaff) return res.status(404).json({ message: 'Staff not found' });
 
-    // Delete uploaded files from storage
     if (deletedStaff.profilePic) {
       const profilePath = path.join(__dirname, '../uploads/profile_pics', deletedStaff.profilePic);
       if (fs.existsSync(profilePath)) fs.unlinkSync(profilePath);
@@ -127,12 +120,4 @@ const deleteStaff = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: 'Error deleting staff', error: err.message });
   }
-};
-
-module.exports = {
-  addStaff,
-  getStaff,
-  getStaffById,
-  updateStaff,
-  deleteStaff
 };

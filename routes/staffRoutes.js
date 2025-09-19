@@ -1,23 +1,21 @@
 const express = require('express');
-const router = express.Router();
-const staffController = require('../controllers/staffController');
 const multer = require('multer');
 const path = require('path');
+const staffController = require('../controllers/staffController');
 
-// --- Multer setup for file uploads ---
+const router = express.Router();
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     if (file.fieldname === 'profilePic') cb(null, 'uploads/profile_pics');
-    else if (file.fieldname === 'certificates') cb(null, 'uploads/certificates');
-    else cb(null, 'uploads');
+    else cb(null, 'uploads/certificates');
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+    cb(null, Date.now() + '-' + file.originalname);
   }
 });
 const upload = multer({ storage });
 
-// --- Routes ---
 router.post('/', upload.fields([
   { name: 'profilePic', maxCount: 1 },
   { name: 'certificates', maxCount: 10 }
