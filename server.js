@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
@@ -19,19 +20,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(bodyParser.json());
-
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // --- Routes ---
 app.use('/api/staff', staffRoutes);
 app.use('/api/auth', authRoutes);
-app.use('/api/nurse-requests', nurseRequestsRouter); // ← new endpoint
+app.use('/api/nurse-requests', nurseRequestsRouter);
 
 // --- Default route ---
 app.get('/', (req, res) => res.send('API is running'));
 
-// --- Function to create default admin (plain-text password) ---
+// --- Function to create default admin ---
 async function createDefaultAdmin() {
   try {
     const existingAdmin = await User.findOne({ email: 'admin@medi.com' });
@@ -57,7 +57,7 @@ mongoose.connect(process.env.MONGO_URI, {
 })
 .then(() => {
   console.log('✅ MongoDB connected');
-  createDefaultAdmin();  // runs once after DB connection
+  createDefaultAdmin();
 
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
