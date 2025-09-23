@@ -3,7 +3,7 @@ const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-// const bcrypt = require('bcrypt');  <-- removed
+const bodyParser = require('body-parser');
 const User = require('./models/User'); // make sure path is correct
 
 // Routes
@@ -20,6 +20,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(bodyParser.json());
+
 
 // --- Routes ---
 app.use('/api/staff', staffRoutes);

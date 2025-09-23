@@ -38,7 +38,7 @@ exports.addStaff = async (req, res) => {
       role,
       workEmail,
       personalEmail,
-      password,
+      password, // plain for now, will be hashed by pre-save hook
       specialization,
       qualifications,
       languages,
