@@ -67,17 +67,17 @@ router.get('/', async (req, res) => {
     }
 });
 
-// --- GET staff by ID ---
-router.get('/:id', async (req, res) => {
-    try {
-        const staff = await Staff.findById(req.params.id);
-        if (!staff) return res.status(404).json({ message: 'Staff not found' });
-        res.json(staff);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
+// Get all staff
+router.get('/', async (req, res) => {
+  try {
+    const staff = await Staff.find(); // fetches from 'staffs' collection
+    res.json(staff);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
 });
+
 
 // --- DELETE staff ---
 router.delete('/:id', async (req, res) => {
