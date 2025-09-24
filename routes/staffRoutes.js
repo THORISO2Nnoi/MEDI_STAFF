@@ -115,5 +115,53 @@ router.get('/:staffId', async (req, res) => {
   }
 });
 
+// Update a staff member by staffId
+router.put('/:staffId', async (req, res) => {
+  try {
+    const { staffId } = req.params;
+    const {
+      fullName,
+      role,
+      workEmail,
+      personalEmail,
+      password,
+      specialization,
+      qualifications,
+      languages,
+      experience,
+      hpcsaNumber,
+      location
+    } = req.body;
+
+    const updatedStaff = await Staff.findOneAndUpdate(
+      { staffId },
+      {
+        fullName,
+        role,
+        workEmail,
+        personalEmail,
+        password, // consider hashing in production
+        specialization: specialization || [],
+        qualifications: qualifications || [],
+        languages: languages || [],
+        experience: experience || '',
+        hpcsaNumber: hpcsaNumber || '',
+        location: location || ''
+      },
+      { new: true } // return the updated document
+    );
+
+    if (!updatedStaff) {
+      return res.status(404).json({ message: 'Staff not found' });
+    }
+
+    res.json({ message: 'Staff updated successfully', staff: updatedStaff });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+
 
 module.exports = router;
