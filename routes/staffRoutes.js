@@ -91,4 +91,22 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+// Get a specific staff member by staffId
+router.get('/:staffId', async (req, res) => {
+  try {
+    const { staffId } = req.params;
+    const staff = await Staff.findOne({ staffId }); // fetch from the 'staffs' collection
+
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff not found' });
+    }
+
+    res.json(staff);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+
 module.exports = router;
