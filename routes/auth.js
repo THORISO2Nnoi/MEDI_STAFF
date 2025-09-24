@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const User = require('../models/User');   // Admins
@@ -11,17 +10,17 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_here';
 router.post('/login', async (req, res) => {
   const { workEmail, password } = req.body;
 
-  if (!workEmail || !password)
+  if (!workEmail || !password) {
     return res.status(400).json({ message: 'Work email and password are required' });
+  }
 
   try {
-    // Try finding an Admin
-// Admin login
-const admin = await User.findOne({ email: workEmail });
+    // 🔹 Admin login (checks plain text password)
+    const admin = await User.findOne({ email: workEmail });
     if (admin) {
-      const isMatch = await bcrypt.compare(password, admin.password);
-      if (!isMatch)
+      if (password !== admin.password) {
         return res.status(400).json({ message: 'Invalid work email or password' });
+      }
 
       const token = jwt.sign({ id: admin._id, role: 'Admin' }, JWT_SECRET, { expiresIn: '1d' });
 
@@ -30,17 +29,21 @@ const admin = await User.findOne({ email: workEmail });
         token,
         _id: admin._id,
         name: admin.name || 'Admin',
-        workEmail: admin.email,
+        workEmail: admin.email,   // still mapped to workEmail for frontend
         role: 'Admin'
       });
     }
 
-    // Try finding Staff
+    // 🔹 Staff login (uses Staff schema's comparePassword, may still be hashed)
     const staff = await Staff.findOne({ workEmail });
-    if (!staff) return res.status(400).json({ message: 'Invalid work email or password' });
+    if (!staff) {
+      return res.status(400).json({ message: 'Invalid work email or password' });
+    }
 
     const isMatch = await staff.comparePassword(password);
-    if (!isMatch) return res.status(400).json({ message: 'Invalid work email or password' });
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid work email or password' });
+    }
 
     const token = jwt.sign({ id: staff._id, role: staff.role }, JWT_SECRET, { expiresIn: '1d' });
 
