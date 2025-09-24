@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const StaffSchema = new mongoose.Schema({
     staffId: { type: String, required: true, unique: true },
     fullName: { type: String, required: true },
-    role: { type: String, required: true }, // Doctor, Nurse, Receptionist, Admin
+    role: { type: String, required: true, enum: ['Admin', 'Doctor', 'Nurse'] },
     workEmail: { type: String, required: true, unique: true },
     personalEmail: { type: String, required: true, unique: true },
     password: { type: String, required: true },
