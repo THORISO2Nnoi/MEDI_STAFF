@@ -15,24 +15,25 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    // 🔹 Admin login (checks plain text password)
+  // 🔹 Admin login (plain text check)
 const admin = await User.findOne({ workEmail });
-    if (admin) {
-      if (password !== admin.password) {
-        return res.status(400).json({ message: 'Invalid work email or password' });
-      }
+if (admin) {
+  if (password !== admin.password) {
+    return res.status(400).json({ message: 'Invalid work email or password' });
+  }
 
-      const token = jwt.sign({ id: admin._id, role: 'Admin' }, JWT_SECRET, { expiresIn: '1d' });
+  const token = jwt.sign({ id: admin._id, role: 'Admin' }, JWT_SECRET, { expiresIn: '1d' });
 
-      return res.json({
-        message: 'Login successful',
-        token,
-        _id: admin._id,
-        name: admin.name || 'Admin',
-        workEmail: admin.email,   // still mapped to workEmail for frontend
-        role: 'Admin'
-      });
-    }
+  return res.json({
+    message: 'Login successful',
+    token,
+    _id: admin._id,
+    name: admin.name || 'Admin',
+    workEmail: admin.workEmail,
+    role: 'Admin'
+  });
+}
+
 
     // 🔹 Staff login (uses Staff schema's comparePassword, may still be hashed)
     const staff = await Staff.findOne({ workEmail });
