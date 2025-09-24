@@ -16,7 +16,7 @@ router.post('/login', async (req, res) => {
 
   try {
     // Try finding an Admin
-    const admin = await User.findOne({ email: workEmail });
+   const admin = await User.findOne({ workEmail });
     if (admin) {
       const isMatch = await bcrypt.compare(password, admin.password);
       if (!isMatch)
