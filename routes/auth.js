@@ -16,7 +16,7 @@ router.post('/login', async (req, res) => {
 
   try {
     // 🔹 Admin login (checks plain text password)
-    const admin = await User.findOne({ email: workEmail });
+const admin = await User.findOne({ workEmail });
     if (admin) {
       if (password !== admin.password) {
         return res.status(400).json({ message: 'Invalid work email or password' });
