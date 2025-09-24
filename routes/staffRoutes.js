@@ -140,7 +140,7 @@ router.put('/:staffId', async (req, res) => {
         role,
         workEmail,
         personalEmail,
-        password, // consider hashing in production
+        password, // keep plain text for now; hash in production
         specialization: specialization || [],
         qualifications: qualifications || [],
         languages: languages || [],
@@ -148,7 +148,7 @@ router.put('/:staffId', async (req, res) => {
         hpcsaNumber: hpcsaNumber || '',
         location: location || ''
       },
-      { new: true } // return the updated document
+      { new: true } // return updated document
     );
 
     if (!updatedStaff) {
@@ -161,6 +161,7 @@ router.put('/:staffId', async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
 
 
 
