@@ -5,105 +5,57 @@ const path = require('path');
 const fs = require('fs');
 const Staff = require('../models/Staff');
 
-// Configure multer for file uploads
+// Multer setup for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = 'uploads/';
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
-    cb(null, true);
-  } else {
-    cb(new Error('Only images and PDF files are allowed'), false);
-  }
+  if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') cb(null, true);
+  else cb(new Error('Only images and PDF files are allowed'), false);
 };
 
-const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024
-  }
-});
+const upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
 
-// Add new staff with file uploads
-router.post('/add', upload.fields([
-  { name: 'profilePic', maxCount: 1 },
-  { name: 'certificates', maxCount: 10 }
-]), async (req, res) => {
+// Helper: convert string fields to arrays
+const processArrayField = (field) => {
+  if (Array.isArray(field)) return field;
+  if (typeof field === 'string' && field.trim() !== '') return field.split(',').map(i => i.trim());
+  return [];
+};
+
+// ------------------- Staff Routes -------------------
+
+// Add new staff
+router.post('/add', upload.fields([{ name: 'profilePic', maxCount: 1 }, { name: 'certificates', maxCount: 10 }]), async (req, res) => {
   try {
-    const {
-      staffId,
-      fullName,
-      role,
-      workEmail,
-      personalEmail,
-      password,
-      specialization = [],
-      qualifications = [],
-      languages = [],
-      experience = '',
-      hpcsaNumber = '',
-      location = ''
-    } = req.body;
+    let { staffId, fullName, role, workEmail, personalEmail, password, specialization = [], qualifications = [], languages = [], experience = '', hpcsaNumber = '', location = '' } = req.body;
 
-    // Basic validation
     if (!staffId || !fullName || !role || !workEmail || !personalEmail || !password) {
-      if (req.files) {
-        Object.values(req.files).forEach(files => {
-          files.forEach(file => {
-            fs.unlinkSync(file.path);
-          });
-        });
-      }
-      return res.status(400).json({ 
-        success: false,
-        message: 'Please fill in all required fields' 
-      });
+      if (req.files) Object.values(req.files).flat().forEach(f => fs.existsSync(f.path) && fs.unlinkSync(f.path));
+      return res.status(400).json({ success: false, message: 'Please fill in all required fields' });
     }
 
-    // Check for existing staff
-    const existingStaff = await Staff.findOne({ 
-      $or: [{ staffId }, { workEmail }, { personalEmail }] 
-    });
+    workEmail = workEmail.toLowerCase().trim();
+    personalEmail = personalEmail.toLowerCase().trim();
+
+    const existingStaff = await Staff.findOne({ $or: [{ staffId }, { workEmail }, { personalEmail }] });
     if (existingStaff) {
-      if (req.files) {
-        Object.values(req.files).forEach(files => {
-          files.forEach(file => {
-            fs.unlinkSync(file.path);
-          });
-        });
-      }
-      return res.status(409).json({ 
-        success: false,
-        message: 'Staff ID or email already exists' 
-      });
+      if (req.files) Object.values(req.files).flat().forEach(f => fs.existsSync(f.path) && fs.unlinkSync(f.path));
+      return res.status(409).json({ success: false, message: 'Staff ID or email already exists' });
     }
 
-    // Handle file paths
     const profilePic = req.files?.profilePic ? req.files.profilePic[0].path : '';
-    const certificates = req.files?.certificates ? req.files.certificates.map(file => file.path) : [];
+    const certificates = req.files?.certificates ? req.files.certificates.map(f => f.path) : [];
 
-    // Convert string fields to arrays if needed
-    const processArrayField = (field) => {
-      if (Array.isArray(field)) return field;
-      if (typeof field === 'string' && field.trim() !== '') {
-        return field.split(',').map(item => item.trim());
-      }
-      return [];
-    };
-
-    // Create staff object
     const newStaff = new Staff({
       staffId,
       fullName,
@@ -122,54 +74,24 @@ router.post('/add', upload.fields([
     });
 
     await newStaff.save();
-    
-    // Return without password
     const staffResponse = { ...newStaff._doc };
     delete staffResponse.password;
 
-    res.status(201).json({ 
-      success: true,
-      message: 'Staff added successfully', 
-      data: staffResponse 
-    });
+    res.status(201).json({ success: true, message: 'Staff added successfully', data: staffResponse });
 
   } catch (error) {
-    console.error(error);
-    
-    if (req.files) {
-      Object.values(req.files).forEach(files => {
-        files.forEach(file => {
-          if (fs.existsSync(file.path)) {
-            fs.unlinkSync(file.path);
-          }
-        });
-      });
-    }
-    
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error', 
-      error: error.message 
-    });
+    if (req.files) Object.values(req.files).flat().forEach(f => fs.existsSync(f.path) && fs.unlinkSync(f.path));
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
-// Get all staff - FIXED RESPONSE FORMAT
+// Get all staff
 router.get('/', async (req, res) => {
   try {
     const staff = await Staff.find().select('-password');
-    res.json({
-      success: true,
-      data: staff,
-      message: 'Staff retrieved successfully'
-    });
+    res.json({ success: true, data: staff, message: 'Staff retrieved successfully' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error', 
-      error: err.message 
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 });
 
@@ -177,70 +99,82 @@ router.get('/', async (req, res) => {
 router.get('/email/:email', async (req, res) => {
   try {
     const { email } = req.params;
-    const staff = await Staff.findOne({ workEmail: email }).select('-password');
+    const staff = await Staff.findOne({ workEmail: email.toLowerCase() }).select('-password');
 
-    if (!staff) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Staff not found' 
-      });
-    }
+    if (!staff) return res.status(404).json({ success: false, message: 'Staff not found' });
 
-    res.json({
-      success: true,
-      data: staff,
-      message: 'Staff retrieved successfully'
-    });
+    res.json({ success: true, data: staff, message: 'Staff retrieved successfully' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error', 
-      error: error.message 
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
-// Delete a staff member by staffId
+// Delete staff by staffId
 router.delete('/:staffId', async (req, res) => {
   try {
     const { staffId } = req.params;
-
     const staff = await Staff.findOne({ staffId });
-    if (!staff) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Staff not found' 
-      });
-    }
+    if (!staff) return res.status(404).json({ success: false, message: 'Staff not found' });
 
-    // Delete associated files
-    if (staff.profilePic && fs.existsSync(staff.profilePic)) {
-      fs.unlinkSync(staff.profilePic);
-    }
-    
-    if (staff.certificates && staff.certificates.length > 0) {
-      staff.certificates.forEach(certificate => {
-        if (fs.existsSync(certificate)) {
-          fs.unlinkSync(certificate);
-        }
-      });
-    }
+    if (staff.profilePic && fs.existsSync(staff.profilePic)) fs.unlinkSync(staff.profilePic);
+    if (staff.certificates?.length > 0) staff.certificates.forEach(f => fs.existsSync(f) && fs.unlinkSync(f));
 
     await Staff.findOneAndDelete({ staffId });
+    res.json({ success: true, message: `Staff ${staff.fullName} deleted successfully`, data: null });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
 
-    res.json({ 
-      success: true,
-      message: `Staff ${staff.fullName} deleted successfully`,
-      data: null
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error', 
-      error: error.message 
-    });
+// ------------------- Doctor Routes -------------------
+
+// Get all doctors (both singular /doctor and plural /doctors)
+router.get(['/doctor', '/doctors'], async (req, res) => {
+  try {
+    const doctors = await Staff.find({ role: 'Doctor' }).select('-password');
+    res.json({ success: true, count: doctors.length, data: doctors, message: 'All doctors retrieved successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
+
+// Get doctors with essential fields only
+router.get(['/doctor/essential', '/doctors/essential'], async (req, res) => {
+  try {
+    const doctors = await Staff.find({ role: 'Doctor' })
+      .select('staffId fullName specialization qualifications experience languages profilePic location')
+      .sort({ fullName: 1 });
+
+    res.json({ success: true, count: doctors.length, data: doctors, message: 'Doctors essential info retrieved successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
+
+// Get doctors by specialization
+router.get(['/doctor/specialization/:specialization', '/doctors/specialization/:specialization'], async (req, res) => {
+  try {
+    const { specialization } = req.params;
+    const doctors = await Staff.find({ role: 'Doctor', specialization: { $regex: specialization, $options: 'i' } }).select('-password');
+
+    res.json({ success: true, count: doctors.length, data: doctors, message: `Doctors with specialization '${specialization}' retrieved successfully` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+});
+
+// ------------------- Role Counts -------------------
+
+router.get('/roles/count', async (req, res) => {
+  try {
+    const roleCounts = await Staff.aggregate([
+      { $group: { _id: '$role', count: { $sum: 1 } } },
+      { $project: { role: '$_id', count: 1, _id: 0 } }
+    ]);
+
+    res.json({ success: true, data: roleCounts, message: 'Role counts retrieved successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 });
 
