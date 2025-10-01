@@ -18,19 +18,36 @@ const StaffSchema = new mongoose.Schema({
     certificates: { type: [String], default: [] }
 }, { 
     timestamps: true,
-    collection: 'staffs' // Explicitly set collection name
+    collection: 'staffs'
 });
 
-// Add password hashing middleware
+// Password hashing middleware
 StaffSchema.pre('save', async function(next) {
+    // Only hash the password if it has been modified (or is new)
     if (!this.isModified('password')) return next();
-    this.password = await bcrypt.hash(this.password, 12);
-    next();
+    
+    try {
+        // Hash password with salt rounds 12
+        const salt = await bcrypt.genSalt(12);
+        this.password = await bcrypt.hash(this.password, salt);
+        next();
+    } catch (error) {
+        next(error);
+    }
 });
 
-// Add comparePassword method
+// Compare password method
 StaffSchema.methods.comparePassword = async function(candidatePassword) {
-    return await bcrypt.compare(candidatePassword, this.password);
+    try {
+        return await bcrypt.compare(candidatePassword, this.password);
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Add a method to check if staff exists
+StaffSchema.statics.findByEmail = function(email) {
+    return this.findOne({ workEmail: email });
 };
 
 module.exports = mongoose.model('Staff', StaffSchema);
